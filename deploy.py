@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 Backend script for the "E-Mail defer"-Zimlet available
 at https://github.com/dploeger/zimbra-zimlet-emaildefer
@@ -39,6 +40,9 @@ class MyParser(ConfigParser.ConfigParser):
 if __name__ == "__main__":
 
     # Interpret arguments
+    config = MyParser()
+    config.read('/home/marcogh/zimbraSignature/config.ini')
+    confdict = config.as_dict()
 
     parser = OptionParser(
         usage="Usage: %prog [options] SERVER USERNAME PASSWORD",
@@ -102,170 +106,106 @@ if __name__ == "__main__":
 
     logging.debug("Fetching all domains")
 
-    domains = sp.getAllDomains()
+    for dept in confdict:
+        for current_user in eval(confdict[dept]['users']):
 
-    for current_domain in domains:
+            #sai = sp.getAccountInfo(
+                            #AccountBy.name,
+                            #current_user.getMail())
 
-        logging.debug("Getting all accounts for domain %s" % (current_domain))
+            sa = sp.getAccount('%s@elmaonline.it' % current_user)
+            sa.createSignature('personal_signature',
+                    {"zimbraPrefMailSignatureHTML":u"""
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<div class="Section1">
+<font size="2" face="Arial">
+-- 
+<br>
+<em>%s</em>
+<br>
+<strong>%s</strong>
+<br>
+<a href="mailto:%s" target="_blank">%s</a>
+</font>
+</div>
+<br>
 
-        domainusers = sp.getAllAccounts(current_domain)
+<div class="Section1">
+<font face="Arial" size="2">
+<strong>ELMA ASCENSORI spa</strong>
+<br>
+via S. Desiderio, 31
+<br>
+25020 Flero (BS) Italy <br>
+</font>
+</div>
+<br>
 
-        for current_user in domainusers:
+<div class="Section1">
+<font face="Arial" size="2">
+tel. <a href="callto:+39.0303580936">+39.0303580936</a> - 
+fax <a href="callto:+39.0303580190">+39.0303580190</a>
+<br>
+<a href="mailto:elma@elmaonline.it" target="_blank">elma@elmaonline.it</a> - 
+<a href="http://www.elmaonline.it/" target="_blank">www.elmaonline.it</a><br>
+<br>
+partita IVA IT 03082160171 - codice fiscale 08710640155<br>
+reg.imp.CCIAA BS 08710640155 - capitale sociale € 1.060.800 i.v.<br>
+</font>
+</div>
+<br>
 
-            logging.debug(
-                "Checking, if user %s is active." % (current_user)
-            )
+<div class="Section1">
+<font face="Arial" size="1">
+<p style="TEXT-ALIGN: justify">
+Le informazioni contenute nella comunicazione che precede possono essere 
+riservate e sono, comunque, destinate esclusivamente alla persona o 
+all'ente sopraindicati. La diffusione, distribuzione e/o copiatura del 
+documento trasmesso da parte di qualsiasi soggetto diverso dal 
+destinatario e` proibita. La sicurezza e la correttezza dei messaggi di 
+posta elettronica non possono essere garantite. Se avete ricevuto questo
+messaggio per errore, Vi preghiamo di contattarci immediatamente. 
+Grazie.</p>
+<br>
+<p style="TEXT-ALIGN: justify">
+This communication is 
+intended only for use by the addressee. It may contain confidential or 
+privileged information. Transmission cannot be guaranteed to be secure 
+or error-free. If you receive this communication unintentionally, please
+inform us immediately. Thank you.</p>
+</div> <!-- -->
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+""" % (sa.getDisplayName(),confdict[dept]['name'],sa.getUnicodeName(),sa.getUnicodeName(),)})
 
-            logging.debug(
-                "Checking, if user %s has the zimlet configured"\
-                 % (current_user)
-             )
 
-            # Connect to mailbox service using Administrator accounts
-
-            # Get Mailbox Options from Provisioning
-
-            sai = sp.getAccountInfo(
-                AccountBy.name,
-                current_user.getMail()
-            )
-
-            sa = sp.getAccount(current_user.getMail())
-
-            # Check, wether account is active
-
-            if not sa.isAccountStatusActive():
-                logging.info("Account %s is inactive" % (current_user))
-                continue
-
-            sa.createSignature('testing',{"zimbraPrefMailSignatureHTML":"<div>ciao</div>"})
-            raise IndexError
-
-
-
-
-
-
-
-            dar = sp.delegateAuth(
-                AccountBy.name,
-                current_user.getMail(),
-                60 * 60 * 24
-            )
-
-            opt = ZMailbox.Options(
-                dar.getAuthToken(),
-                sai.getAdminSoapURL()
-            )
-
-            mailbox = ZMailbox.getMailbox(opt)
-
-            accountinfo = mailbox.getAccountInfo(True)
-
-            defer_folder_id = None
-            defer_tag_id = None
-
-            for key in accountinfo.getZimletProps()[
-                "zimbraZimletUserProperties"
-            ]:
-                if ("de_dieploegers_emaildefer" in key) and\
-                   ("deferFolderId" in key):
-                    defer_folder_id = key.split(":")[2]
-                elif ("de_dieploegers_emaildefer" in key) and\
-                   ("deferTagId" in key):
-                    defer_tag_id = key.split(":")[2]
-
-            if defer_folder_id != None and defer_tag_id != None:
-
-                logging.info(
-                    "Checking for deferred mails of user %s" % (current_user)
-                )
-
-                # Check, if folder and tag exist
-
-                if mailbox.getTagById(defer_tag_id) == None:
-                    logging.warn(
-                        "Tag with ID %s doesn't exist for user %s" %
-                        (
-                            defer_tag_id,
-                            current_user
-                        )
-                    )
-
-                    continue
-
-                if mailbox.getFolderById(defer_folder_id) == None:
-                    logging.warn(
-                        "Folder with ID %s doesn't exist for user %s" %
-                        (
-                            defer_folder_id,
-                            current_user
-                        )
-                    )
-
-                    continue
-
-                # This user is using the defer-zimlet
-
-                searchparams = ZSearchParams(
-                    "inid: %s and date:<=+0minute" % (defer_folder_id)
-                )
-
-                searchparams.setTypes(ZSearchParams.TYPE_MESSAGE)
-
-                searchparams.setTimeZone(
-                    TimeZone.getTimeZone(
-                        sa.getPrefTimeZoneId()[0]
-                    )
-                )
-
-                searchparams.setLimit(9999)
-
-                # Get E-Mails in the defer folder aged today and older
-
-                results = mailbox.search(searchparams)
-
-                if results.getHits().size() > 0:
-
-                    logging.info(
-                        "Found %d deferred mails" % (
-                            results.getHits().size()
-                        )
-                    )
-
-                else:
-
-                    logging.info("No mails found")
-
-                for i in range(results.getHits().size()):
-
-                    current_message = results.getHits().get(i).getId()
-
-                    logging.info("Moving message %d" % (i + 1))
-
-                    logging.debug(
-                        "Message: %s" % (
-                            results.getHits().get(i).dump()
-                        )
-                    )
-
-                    result = mailbox.moveMessage(
-                        current_message,
-                        mailbox.getInbox().getId()
-                    )
-
-                    logging.info("Marking message as read")
-
-                    result = mailbox.markItemRead(
-                        current_message,
-                        False,
-                        None
-                    )
-
-                    logging.info("Tagging message")
-
-                    result = mailbox.tagMessage(
-                        current_message,
-                        defer_tag_id,
-                        True
-                    )
